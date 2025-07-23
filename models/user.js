@@ -44,9 +44,10 @@ UserSchema.pre('save', async function(next) {
     next();
 });
 
-// Method to compare password
-UserSchema.methods.comparePassword = async function(candidatePassword) {
-    return bcrypt.compare(candidatePassword, this.password);
+// IMPORTANT CHANGE: Changed from 'comparePassword' to 'matchPassword'
+// This method is called by server.js to verify the password during login
+UserSchema.methods.matchPassword = async function(enteredPassword) {
+    return await bcrypt.compare(enteredPassword, this.password);
 };
 
 module.exports = mongoose.model('User', UserSchema);
