@@ -6,12 +6,14 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 require('dotenv').config(); // To load environment variables from .env file
 
-// Import User model
-const User = require('./models/user'); 
+// Import User model (ensure this path is correct and case-sensitive)
+const User = require('./models/user'); // Corrected path to './models/user'
+
 const jwt = require('jsonwebtoken'); // Import jsonwebtoken 
 
 const app = express();
 const PORT = process.env.PORT || 5000; // Server will run on port 5000 (or whatever is set in .env)
+
 // Middleware
 app.use(cors()); // Enable Cross-Origin Resource Sharing for frontend communication
 app.use(express.json()); // To parse JSON request bodies
@@ -23,7 +25,7 @@ mongoose.connect(uri)
     .then(() => console.log('MongoDB connected successfully!'))
     .catch(err => console.error('MongoDB connection error:', err));
 
-// Function to generate JWT Token (यह फ़ंक्शन आपके कोड में शायद ऊपर मौजूद होगा, सुनिश्चित करें कि यह है)
+// Function to generate JWT Token
 const generateToken = (id) => {
     return jwt.sign({ id }, process.env.JWT_SECRET, {
         expiresIn: '30d', // Token will expire in 30 days
@@ -72,7 +74,7 @@ app.post('/api/auth/register', async (req, res) => {
     }
 });
 
-// Login User (UPDATED WITH JWT TOKEN GENERATION)
+// Login User
 app.post('/api/auth/login', async (req, res) => {
     const { username, password } = req.body;
 
@@ -82,21 +84,22 @@ app.post('/api/auth/login', async (req, res) => {
             return res.status(400).json({ message: 'Invalid credentials' }); 
         }
 
-        const isMatch = await user.matchPassword(password); // Ensure User.js has matchPassword
+        const isMatch = await user.matchPassword(password); // User.js में matchPassword मेथड का उपयोग
         if (!isMatch) {
             return res.status(400).json({ message: 'Invalid credentials' }); 
         }
 
-        // User is authenticated, generate a token (NOW ACTIVE)
+        // User is authenticated, generate a token
         res.status(200).json({
             message: 'Logged in successfully',
             _id: user._id,
             username: user.username,
-            token: generateToken(user._id), // THIS LINE IS NOW ACTIVE AND GENERATES THE TOKEN
+            token: generateToken(user._id), // JWT टोकन जनरेट और भेजा जा रहा है
         });
 
     } catch (error) {
-        res.status(500).json({ message: 'Server error', error: error.message });
+        console.error('Login error:', error);
+        res.status(500).json({ message: 'Server error during login.', error: error.message });
     }
 });
 
