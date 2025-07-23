@@ -6,80 +6,93 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 require('dotenv').config(); // To load environment variables from .env file
 
-// Import User model (ADD THIS LINE)
-const User = require('./models/User'); 
+// Import User model
+const User = require('./models/user'); 
+const jwt = require('jsonwebtoken'); // Import jsonwebtoken 
 
 const app = express();
 const PORT = process.env.PORT || 5000; // Server will run on port 5000 (or whatever is set in .env)
-
 // Middleware
 app.use(cors()); // Enable Cross-Origin Resource Sharing for frontend communication
 app.use(express.json()); // To parse JSON request bodies
 
 // MongoDB Connection
-// The URI should match what you see in MongoDB Compass or your .env file
 const uri = process.env.MONGODB_URI || 'mongodb://localhost:27017/dailyTasksDB'; 
 
 mongoose.connect(uri)
     .then(() => console.log('MongoDB connected successfully!'))
     .catch(err => console.error('MongoDB connection error:', err));
 
+// Function to generate JWT Token (यह फ़ंक्शन आपके कोड में शायद ऊपर मौजूद होगा, सुनिश्चित करें कि यह है)
+const generateToken = (id) => {
+    return jwt.sign({ id }, process.env.JWT_SECRET, {
+        expiresIn: '30d', // Token will expire in 30 days
+    });
+};
+
 // Basic route for testing the server
 app.get('/', (req, res) => {
     res.send('Task App Backend is running!');
 });
 
-// User Authentication Routes (ADD THESE ROUTES)
+// User Authentication Routes
 // Register User
 app.post('/api/auth/register', async (req, res) => {
-    const { username, password } = req.body; // Get username and password from request body
+    const { username, email, fullName, mobileNumber, password } = req.body;
+
+    if (!username || !email || !fullName || !password) {
+        return res.status(400).json({ message: 'Please enter all required fields (username, email, full name, password).' });
+    }
 
     try {
-        // Check if user already exists
-        const userExists = await User.findOne({ username });
-        if (userExists) {
-            return res.status(400).json({ message: 'User already exists' });
+        let userByUsername = await User.findOne({ username });
+        if (userByUsername) {
+            return res.status(400).json({ message: 'Username already exists.' });
+        }
+        let userByEmail = await User.findOne({ email });
+        if (userByEmail) {
+            return res.status(400).json({ message: 'Email already exists.' });
         }
 
-        // Create new user (password will be hashed by pre-save middleware in User.js)
-        const user = await User.create({ username, password });
-
-        res.status(201).json({
-            message: 'User registered successfully',
-            _id: user._id,
-            username: user.username
+        const newUser = new User({
+            username,
+            email,
+            fullName,
+            mobileNumber, 
+            password 
         });
 
+        await newUser.save(); 
+
+        res.status(201).json({ message: 'User registered successfully!' });
+
     } catch (error) {
-        res.status(500).json({ message: 'Server error', error: error.message });
+        console.error('Registration error:', error);
+        res.status(500).json({ message: 'Server error during registration.', error: error.message });
     }
 });
 
-// Login User
+// Login User (UPDATED WITH JWT TOKEN GENERATION)
 app.post('/api/auth/login', async (req, res) => {
     const { username, password } = req.body;
 
     try {
-        // Check if user exists
         const user = await User.findOne({ username });
         if (!user) {
-            return res.status(400).json({ message: 'Invalid credentials' }); // Use generic message for security
+            return res.status(400).json({ message: 'Invalid credentials' }); 
         }
 
-        // Check if password matches
-        // user.matchPassword is a method defined in models/User.js
-        const isMatch = await user.matchPassword(password); 
+        const isMatch = await user.matchPassword(password); // Ensure User.js has matchPassword
         if (!isMatch) {
-            return res.status(400).json({ message: 'Invalid credentials' }); // Use generic message for security
+            return res.status(400).json({ message: 'Invalid credentials' }); 
         }
 
-        // User is authenticated, generate a token (we'll add JWT later)
-        // For now, we'll just send success message
+        // User is authenticated, generate a token (NOW ACTIVE)
         res.status(200).json({
             message: 'Logged in successfully',
             _id: user._id,
             username: user.username,
-            // token: generateToken(user._id) // We'll add this later with jsonwebtoken
+            token: generateToken(user._id), // THIS LINE IS NOW ACTIVE AND GENERATES THE TOKEN
         });
 
     } catch (error) {
